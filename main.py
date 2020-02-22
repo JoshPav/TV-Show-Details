@@ -1,48 +1,49 @@
-import requests 
 from models.TvListResultObject import TvListResultObject
 from tabulate import tabulate
+import ApiGateway
+from models.TvShowDetailsObject import TvShowDetailsObject
 
-
-API_KEY="dff74ac126bbec75e5c44206cbad2ab6"
-BASE_API_ENDPOINT="https://api.themoviedb.org/3"
-
-
-# Seach for tv series to get the correct id
-
-
-
-def get_tv_id_from_show_name(name):
-    ENDPOINT_PATH = "/search/tv"
-    
-    payload = {'api_key':API_KEY, 
-                'query': name} 
-    
-    r = requests.get(url = BASE_API_ENDPOINT + ENDPOINT_PATH, params = payload) 
-    
-    data = r.json()
-    
-    results = data['results']
-    result_objects = []
-    table = []
-    for index, result in enumerate(results):
-        obj = TvListResultObject(result['id'], result['name'], result['overview'])
-        result_objects.append(obj)
-        table.append(obj.get_table_row(index+1))
-    
+def print_result_object_table(rows):
     table_headers = [" ","Name", "Overview"]
-    print(tabulate(table, headers=table_headers, tablefmt="grid", numalign="center"))
-    
-    print(get_choice("Please enter the corresponding choice: ", len(result_objects)))
+    print(tabulate(rows, headers=table_headers, tablefmt="grid", numalign="center", stralign="center"))
 
+def get_tv_id_from_show_name(name, interactive_mode = False):
         
-def get_choice(question, max_index):
+    results = ApiGateway.search_for_shows_by_name(name)['results']
+    result_objects = extract_objects_from_results(results)
+    
+    if interactive_mode:
+        print_result_object_table(get_tabular_rows_from_result_objects(result_objects))
+        index = get_index_of_choice("Please enter the series that matches: ", len(result_objects))
+    else:
+        index = 0
+        
+    return result_objects[index].id
+    
+def extract_objects_from_results(results):
+    result_objects = []
+    for result in results:
+        result_objects.append(TvListResultObject(result))        
+    return result_objects
+
+def get_tabular_rows_from_result_objects(result_objects):
+    table = []
+    for index, result_object in enumerate(result_objects):
+        table.append(result_object.get_table_row(index+1))    
+    return table
+        
+def get_index_of_choice(question, max_index):
     choice = 0
     choices = list(map(str, range(1, max_index+1)))
     while choice not in choices:
         choice = input(question).strip()
-    return choice
+    return int(choice) - 1
     
-    
-#show_name = input("Enter the name of the TV Series to find: ")
-    
-get_tv_id_from_show_name("Silicon Valley")
+       
+show_id = get_tv_id_from_show_name("Silicon Valley")
+
+response = ApiGateway.get_tv_show_by_id(show_id)
+
+obj = TvShowDetailsObject(response)
+
+print("hello")
